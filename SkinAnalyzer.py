@@ -13,12 +13,15 @@ from skimage import color
 import math
 
 ## Some Constants to be used globally
-BACKGROUND = '#222222'
-BUTTON_BACKGROUND = "#888888"
+BACKGROUND = '#225235'#'#222222' 348253
+BUTTON_BACKGROUND = '#CDC399'#"#888888" 205195153
 photoFolder = None
 excelFile = None
 data = {}
-numSamples = None
+numSamples = 6
+maxSamples = 20
+minSamples = 1
+maxPicsPerCol=4
 ind = -1
 width = 10
 blank = Image.fromarray(np.repeat(np.repeat(np.array([[[255,255,255]]], np.uint8),width*2,axis=1),width*2,axis=0))
@@ -52,7 +55,7 @@ setupFrame.pack(fill='none', expand=True)
 
 ## Setup of the main screen before data collection
 def mainSetup():
-    global photoValBut, skinValBut, burnPhotoBut, flagText, flagFolder, photoFolder, name
+    global multiPointBut, burnPhotoBut, flagText, flagFolder, photoFolder, name, numSamples
     #Frames for orginazation
     fTop = Frame(setupFrame, background=BUTTON_BACKGROUND)
     fMid = Frame(setupFrame, background=BUTTON_BACKGROUND)
@@ -61,22 +64,30 @@ def mainSetup():
     f2 = Frame(fMid, padx=10, background=BUTTON_BACKGROUND)
 
     #Labels for button groups
-    Label(fTop, text="Select the folder containg the images and the excel file for the ouptut.", background=BUTTON_BACKGROUND, wraplength=180, justify='center').pack(side='left', fill = 'both', padx = (32,0))
-    Label(fTop, text="Select the type of pictures/analysis you will be doing.", background=BUTTON_BACKGROUND, wraplength=360, justify='center').pack(side='right', fill='both', padx = (0,48))
+    l_left = Label(fTop, text="Select the folder containg the images and the excel file for the ouptut.", background=BUTTON_BACKGROUND, wraplength=245, justify='center')
+    l_left.pack(side='left', fill = 'both', padx = (36,0))
+    l_right = Label(fTop, text="Select the type of collection you will be using.", background=BUTTON_BACKGROUND, wraplength=315, justify='center')
+    l_right.pack(side='right', fill='both', padx = (0,48))
 
     #Buttons to choose data collection method
-    photoValBut = Button(f1, text="MultiPoint Collection", highlightbackground=BUTTON_BACKGROUND, width=40, height=2, state=tk.DISABLED, command=lambda:setupCollection('pv'))
-    skinValBut = Button(f1, text="Skin Photo Validation", highlightbackground=BUTTON_BACKGROUND, width=40, height=2 ,state=tk.DISABLED, command=lambda:setupCollection('sv'))
-    burnPhotoBut = Button(f1, text="Burn Photo Data Collection", highlightbackground=BUTTON_BACKGROUND, width=40, height=2 ,state=tk.DISABLED, command=lambda:setupCollection('bp'))
+    fMulti = Frame(f1, background=BUTTON_BACKGROUND)
+    multiPointBut = Button(fMulti, text="MultiPoint Collection", highlightbackground=BUTTON_BACKGROUND, height=2, state=tk.DISABLED, command=lambda:setupCollection('mp'))
+    multiPointBut.pack(side='left', fill='x', expand=True)
+    e2 = Entry(fMulti, text='', width = 2, validate = "focusout", validatecommand=lambda:checkNumeric(e2, False))
+    e2.insert(END, str(numSamples))
+    e2.pack(side='right')
+    multiLabel = Label(fMulti, text = "Samples/Pic: ", width = 10, height=2, background=BUTTON_BACKGROUND)
+    multiLabel.pack(side='right', padx=(6,0))
+
+    burnPhotoBut = Button(f1, text="Two-point with ΔE", highlightbackground=BUTTON_BACKGROUND, width=35, height=2 ,state=tk.DISABLED, command=lambda:setupCollection('bp'))
 
     if flagText and flagFolder and not photoFolder=='':
-        photoValBut['state']=tk.NORMAL
-        skinValBut['state']=tk.NORMAL
+        multiPointBut['state']=tk.NORMAL
         burnPhotoBut['state']=tk.NORMAL
 
     #Buttons to get file paths
-    getPhotoFolder = Button(f2, text="Select Photos Folder", highlightbackground=BUTTON_BACKGROUND, width=20, height=2, command=lambda: getPath("Select Photos Folder", True))
-    getExcelFile = Button(f2, text="Select Excel File", highlightbackground=BUTTON_BACKGROUND, width=20, height=2, command=lambda: getPath("Select Excel File", False))
+    getPhotoFolder = Button(f2, text="Select Photos Folder", highlightbackground=BUTTON_BACKGROUND, width=25, height=2, command=lambda: getPath("Select Photos Folder", True))
+    getExcelFile = Button(f2, text="Select Excel File", highlightbackground=BUTTON_BACKGROUND, width=25, height=2, command=lambda: getPath("Select Excel File", False))
 
     #Text entry to get names
     Label(fBottom, text = "Name: ", width = 10, height=2, background=BUTTON_BACKGROUND).pack(side='left', padx=(70,0))
@@ -88,10 +99,15 @@ def mainSetup():
     setupFrame.bind("<Button 1>", lambda e: setupFrame.focus_set())
     getPhotoFolder.bind("<Button 1>", lambda e: setupFrame.focus_set())
     getExcelFile.bind("<Button 1>", lambda e: setupFrame.focus_set())
+    multiLabel.bind("<Button 1>", lambda e: setupFrame.focus_set())
+    fMulti.bind("<Button 1>", lambda e: setupFrame.focus_set())
+    l_left.bind("<Button 1>", lambda e: setupFrame.focus_set())
+    l_right.bind("<Button 1>", lambda e: setupFrame.focus_set())
+    root.bind("<Return>", lambda e: setupFrame.focus_set())
 
     #Text entry for apperture
-    e1 = Entry(fBottom, text='', width = 3, validate = "focusout", validatecommand=lambda:checkNumeric(e1))
-    e1.insert(END, '10')
+    e1 = Entry(fBottom, text='', width = 3, validate = "focusout", validatecommand=lambda:checkNumeric(e1, True))
+    e1.insert(END, str(width))
     e1.pack(side='right', padx=(0,70))
     Label(fBottom, text = "Aperture: ", width = 10, height=2, background=BUTTON_BACKGROUND).pack(side='right')
 
@@ -113,8 +129,7 @@ def mainSetup():
 
 
     #Pack the components onto the setupFrame
-    photoValBut.pack()
-    skinValBut.pack()
+    fMulti.pack(fill='x', expand=True)
     burnPhotoBut.pack()
     getPhotoFolder.pack()
     getExcelFile.pack()
@@ -125,13 +140,33 @@ def mainSetup():
 
 
 ## Check numeric input for Apperture
-def checkNumeric(e):
-    global width
+def checkNumeric(e, app):
+    global width, numSamples
     if e.get().isdigit():
-        width = int(e.get())
+        if app:
+            width = int(e.get())
+            if width > 100:
+                width = 100
+            elif width < 0:
+                width = 0
+            e.delete(0,END)
+            e.insert(END,str(width))
+        else:
+            numSamples = int(e.get())
+            if numSamples > maxSamples:
+                numSamples = maxSamples
+            elif numSamples < minSamples:
+                numSamples = minSamples
+            e.delete(0,END)
+            e.insert(END,str(numSamples))
+        return True
     else:
         e.delete(0,END)
-        e.insert(END,'5')
+        if app:
+            e.insert(END,str(width))
+        else:
+            e.insert(END,str(numSamples))
+        return False
 
 ## Function wrappers to obtain the file paths needed as requested by buttons
 def getPath(str, i):
@@ -140,8 +175,7 @@ def getPath(str, i):
         photoFolder = filedialog.askdirectory(title=str)
         if not photoFolder=='':
             if flagText:
-                photoValBut['state']=tk.NORMAL
-                skinValBut['state']=tk.NORMAL
+                multiPointBut['state']=tk.NORMAL
                 burnPhotoBut['state']=tk.NORMAL
             flagFolder = True
 
@@ -161,8 +195,7 @@ def getName(e):
     name = e.get()
     print(f'Hey {name}')
     if flagFolder:
-        photoValBut['state']=tk.NORMAL
-        skinValBut['state']=tk.NORMAL
+        multiPointBut['state']=tk.NORMAL
         burnPhotoBut['state']=tk.NORMAL
     flagText = True
 
@@ -172,22 +205,17 @@ def setupCollection(m):
     mode = m
     setupFrame.destroy()
     print(mode)
-    if mode == "pv":
-        numSamples=6
+    if mode == "mp":
         txt = ["Sample #{0}".format(x) for x in range(1,numSamples+1)]
-        data = {'filename': [], 'imageNum': [], 'name': [], 'Point': [], 'x_corr': [], 'y_corr': [], 'L': [], 'a': [], 'b': [], 'ITA': [], 'Fitzpatrick Skin Type': [], 'R': [], 'G': [], 'B': []}
-    elif mode == "sv":
-        numSamples = 1
-        txt = ["Sample"]
-        data = {'name':[name]}
+        data = {'filename': [], 'imageNum': [], 'name': [], 'Point': [], 'x_corr': [], 'y_corr': [], 'L*': [], 'a*': [], 'b*': [], 'ITA': [], 'Fitzpatrick Skin Type': [], 'R': [], 'G': [], 'B': []}
     elif mode == "bp":
         numSamples = 2
         txt = ["Skin","Burn"]
-        data = {'filename': [], 'imageNum': [], 'name': [], 'x_corr_Skin': [], 'y_corr_Skin': [], 'L_Skin': [], 'a_Skin': [], 'b_Skin': [], 'ITA_Skin': [], 'Fitzpatrick Skin Type_Skin': [], 'x_corr_Burn': [], 'y_corr_Burn': [], 'L_Burn': [], 'a_Burn': [], 'b_Burn': [], 'ITA_Burn': [], 'Fitzpatrick Skin Type_Burn': [], 'DeltaE': [], 'R_Skin': [], 'G_Skin': [], 'B_Skin': [], 'R_Burn': [], 'G_Burn': [], 'B_Burn': []}
+        data = {'filename': [], 'imageNum': [], 'name': [], 'x_corr_Skin': [], 'y_corr_Skin': [], 'L*_Skin': [], 'a*_Skin': [], 'b*_Skin': [], 'ITA_Skin': [], 'Fitzpatrick Skin Type_Skin': [], 'x_corr_Burn': [], 'y_corr_Burn': [], 'L*_Burn': [], 'a*_Burn': [], 'b*_Burn': [], 'ITA_Burn': [], 'Fitzpatrick Skin Type_Burn': [], 'DeltaE': [], 'R_Skin': [], 'G_Skin': [], 'B_Skin': [], 'R_Burn': [], 'G_Burn': [], 'B_Burn': []}
     else:
         numSamples = 0
         txt=""
-
+    print(f"numSamples={numSamples}")
     fileList = os.listdir(photoFolder)
     fileList = [f for f in fileList if ('.png' in f or '.jpeg' in f or '.jpg' in f) and f not in alreadyDone]
     fileList.sort()
@@ -198,7 +226,7 @@ def setupCollection(m):
 
 ## Setup the frame for data collection as a function of number of samples to take
 def setupCollectionFrame(n,txt):
-    global root, ind, fileList, maxDim, scope, canvs, scopeMag, imgMain, prog, style, pbar
+    global root, ind, fileList, maxDim, scope, canvs, scopeMag, imgMain, prog, style, pbar, maxPicsPerCol, numSamples
     f0 = Frame(root, background=BACKGROUND)
     f1 = Frame(f0, background=BACKGROUND)
     f2 = Frame(f0, background=BACKGROUND)
@@ -207,7 +235,7 @@ def setupCollectionFrame(n,txt):
     print(os.path.join(photoFolder,fileList[ind]))
     imgMain = Image.open(os.path.join(photoFolder,fileList[ind]))
     print(maxDim)
-    maxDim = (0.75*root.winfo_width(), root.winfo_height()-120)
+    maxDim = (root.winfo_width()-math.ceil(numSamples/maxPicsPerCol)*100, root.winfo_height()-120)
     dim = int(imgMain.size[0]/maxDim[0] < imgMain.size[1]/maxDim[1])
     pixels_x, pixels_y = tuple([int(maxDim[dim]/imgMain.size[dim] * x)  for x in imgMain.size])
     imgb = ImageTk.PhotoImage(imgMain.resize((pixels_x, pixels_y)))
@@ -245,44 +273,35 @@ def setupCollectionFrame(n,txt):
 
     #Get samples plotter on right hand side
     samples=[]
-    iter = range(n)
-    ftemp = None
+    fhorz = None
+    fsamp = None
+    cols = math.ceil(n/maxPicsPerCol)
     for i in range(n):
         coords.append(None)
         def make_lambda(x):
             return lambda e: redo(e, x, samples, scaler)
-
-
         imgTemp=ImageTk.PhotoImage(blank.resize((scaler,scaler)))
-        if n>4:
-            if i%2==0:
-                ftemp = Frame(f2, background=BACKGROUND)
-            ftemp2 = Frame(ftemp, background=BACKGROUND)
-            samples.append(Label(ftemp2,image=imgTemp))
-            if i%2==0:
-                Label(ftemp2, text = txt[i], background=BUTTON_BACKGROUND, width=8).pack(pady=(10,0), padx=2)
-                samples[i].pack(pady=(0,10), padx=(8,0))
-                ftemp2.pack(side='left')
-            else:
-                Label(ftemp, text = txt[i], background=BUTTON_BACKGROUND, width=8).pack(pady=(10,0), padx=2)
-                samples[i].pack(pady=(0,10),padx=(0,15))
-                ftemp2.pack(side='right')
-            ftemp.pack()
-        else:
-            samples.append(Label(f2,image=imgTemp))
-            Label(f2, text = txt[i], background=BUTTON_BACKGROUND, width=8).pack(pady=(10,0), padx=(0,15))
-            samples[i].pack(pady=(0,10), padx=(0,15))
+
+        if i%cols==0:
+            fhorz = Frame(f2, background=BACKGROUND)
+        fsamp = Frame(fhorz, background=BACKGROUND)
+        samples.append(Label(fsamp,image=imgTemp))
+        Label(fsamp, text = txt[i], background=BUTTON_BACKGROUND, width=8).pack(pady=(10,0), padx=2)
+        samples[i].pack(pady=(0,10), padx=(8,0))
         samples[i].image = imgTemp
         samples[i].bind("<Button 1>", make_lambda(i))
+        fsamp.pack(side='left')
+        if ((i+1)%cols==0) or (i+1==n):
+            fhorz.pack()
 
     #next and finish button
     f5 = Frame(f2, background=BACKGROUND)
-    next = Button(f5, text="Next", width=10, height=2, highlightbackground=BUTTON_BACKGROUND, command=lambda:nextImg(mainImg, samples, scaler, next, f1))
+    next = Button(f5, text="Next", width=8, height=2, highlightbackground=BUTTON_BACKGROUND, command=lambda:nextImg(mainImg, samples, scaler, next, f1))
     root.bind("<Return>", lambda e: nextImg(mainImg, samples, scaler, next, f5))
     next.pack(side = 'left', pady=20, padx=(0,15))
     if len(fileList)<=1:
         next['state']=tk.DISABLED
-    Button(f5, text="Finish", width=10, height=2, highlightbackground="green", command=finish).pack(side = 'right', pady=20, padx=(0,15))
+    Button(f5, text="Finish", width=8, height=2, highlightbackground="green", command=finish).pack(side = 'right', pady=20, padx=(0,15))
 
 
     f5.pack(side='right', padx=20, expand = True)
@@ -311,9 +330,9 @@ def setupCollectionFrame(n,txt):
 
 ##Take care of main image resize with window resize
 def resiz(e,mainImg, f1):
-    global maxDim, imgMain, root
+    global maxDim, imgMain, root, maxPicsPerCol, numSamples
     root.unbind('<Configure>')
-    maxDim = (0.75*e.width, e.height-120)
+    maxDim = (e.width-math.ceil(numSamples/maxPicsPerCol)*100, e.height-120)
     dim = imgMain.size[0]/maxDim[0] < imgMain.size[1]/maxDim[1]
     pixels_x, pixels_y = tuple([int(maxDim[dim]/imgMain.size[dim] * x)  for x in imgMain.size])
     img = ImageTk.PhotoImage(imgMain.resize((pixels_x, pixels_y)))
@@ -326,17 +345,18 @@ def resiz(e,mainImg, f1):
 
 ## Take care of resetting after each picture
 def nextImg(mainImg, samples, scaler, next, f1):
-    global ind, imgMain, fileList, style, maxDim, coords
+    global ind, imgMain, fileList, style, maxDim, coords, maxPicsPerCol, numSamples
     updateMasterList(imgMain)
     ind=ind+1
     prog.set(100*(ind+1)/len(fileList))
-    pbar.step(ind/len(fileList))
+    # pbar.step(ind/len(fileList))
+    pbar['value']=prog.get()
     style.configure('text.Horizontal.TProgressbar',
                     text="Progress: {0}%".format(int(prog.get())))
 
     #change main image to next
     root.unbind('<Configure>')
-    maxDim = (0.75*root.winfo_width(), root.winfo_height()-120)
+    maxDim = (root.winfo_width()-math.ceil(numSamples/maxPicsPerCol)*100, root.winfo_height()-120)
     imgMain = Image.open(os.path.join(photoFolder,fileList[ind]))
     dim = imgMain.size[0]/maxDim[0] < imgMain.size[1]/maxDim[1]
     pixels_x, pixels_y = tuple([int(maxDim[dim]/imgMain.size[dim] * x)  for x in imgMain.size])
@@ -419,13 +439,13 @@ def updateZoom(i, scaler, line):
 def updateMasterList(im):
     global coords, ind, fileList,data, name
     im = np.array(im)[:,:,:3]
-    if mode == 'pv':
+    if mode == 'mp':
         for i, coord in enumerate(coords):
             if coord is None:
-                meanRGB = [-1,-1,-1]
+                meanRGB = [-9999,-9999,-9999]
                 meanLAB = meanRGB
-                coord=[-1,-1]
-                score=-1
+                coord=[-9999,-9999]
+                score=-9999
             else:
                 RGB = im[int(coord[1])-width:int(coord[1])+width+1,int(coord[0])-width:int(coord[0])+width+1,0:3]
                 LAB = color.rgb2lab(RGB)
@@ -441,38 +461,14 @@ def updateMasterList(im):
             data['R'].append(meanRGB[0])
             data['G'].append(meanRGB[1])
             data['B'].append(meanRGB[2])
-            data['L'].append(meanLAB[0])
-            data['a'].append(meanLAB[1])
-            data['b'].append(meanLAB[2])
+            data['L*'].append(meanLAB[0])
+            data['a*'].append(meanLAB[1])
+            data['b*'].append(meanLAB[2])
             data['ITA'].append(score)
             if coord[0]<0:
-                data['Fitzpatrick Skin Type'].append(-1)
+                data['Fitzpatrick Skin Type'].append(-9999)
             else:
                 data['Fitzpatrick Skin Type'].append(sum(score<scoreThresholds)+1)
-    elif mode == 'sv':
-        coord = coords[0]
-        RGB = im[int(coord[1])-width:int(coord[1])+width+1,int(coord[0])-width:int(coord[0])+width+1,0:3]
-        LAB = color.rgb2lab(RGB)
-        print(RGB)
-        print(LAB)
-        data[f'x_corr_{fileList[ind]}'] = int(coord[0])
-        data[f'y_corr_{fileList[ind]}'] = int(coord[1])
-        meanRGB=np.mean(RGB,axis=(0,1))
-        meanLAB=np.mean(LAB,axis=(0,1))
-        print(meanRGB)
-        print(meanLAB)
-        LAB2 = color.rgb2lab(RGB/255.0)
-        meanLAB2=np.mean(LAB,axis=(0,1))
-        print(meanLAB2)
-        data[f'L_{fileList[ind]}'] = meanLAB[0]
-        data[f'a_{fileList[ind]}'] = meanLAB[1]
-        data[f'b_{fileList[ind]}'] = meanLAB[2]
-        score=math.atan2(meanLAB[0]-50,meanLAB[2])*180/math.pi
-        data[f'ITA_{fileList[ind]}'] = score
-        data[f'Fitzpatrick Skin Type_{fileList[ind]}'] = sum(score<scoreThresholds)+1
-        # data[f'R_{fileList[ind]}'] = meanRGB[0]
-        # data[f'G_{fileList[ind]}'] = meanRGB[1]
-        # data[f'B_{fileList[ind]}'] = meanRGB[2]
     elif mode == 'bp':
         RGB = im[int(coords[0][1])-width:int(coords[0][1])+width+1,int(coords[0][0])-width:int(coords[0][0])+width+1,0:3]
         LAB = color.rgb2lab(RGB)
@@ -486,9 +482,9 @@ def updateMasterList(im):
         data['G_Skin'].append(meanRGB[1])
         data['B_Skin'].append(meanRGB[2])
         meanLAB=np.mean(LAB,axis=(0,1))
-        data['L_Skin'].append(meanLAB[0])
-        data['a_Skin'].append(meanLAB[1])
-        data['b_Skin'].append(meanLAB[2])
+        data['L*_Skin'].append(meanLAB[0])
+        data['a*_Skin'].append(meanLAB[1])
+        data['b*_Skin'].append(meanLAB[2])
         meanLAB1 = meanLAB
         score=math.atan2(meanLAB[0]-50,meanLAB[2])*180/math.pi
         data['ITA_Skin'].append(score)
@@ -502,9 +498,9 @@ def updateMasterList(im):
         data['G_Burn'].append(meanRGB[1])
         data['B_Burn'].append(meanRGB[2])
         meanLAB=np.mean(LAB,axis=(0,1))
-        data['L_Burn'].append(meanLAB[0])
-        data['a_Burn'].append(meanLAB[1])
-        data['b_Burn'].append(meanLAB[2])
+        data['L*_Burn'].append(meanLAB[0])
+        data['a*_Burn'].append(meanLAB[1])
+        data['b*_Burn'].append(meanLAB[2])
         score=math.atan2(meanLAB[0]-50,meanLAB[2])*180/math.pi
         data['ITA_Burn'].append(score)
         data['Fitzpatrick Skin Type_Burn'].append(sum(score<scoreThresholds)+1)
@@ -516,10 +512,11 @@ def finish():
     global root, book, imgMain, ws, mode, excelFile, coords
     updateMasterList(imgMain)
     pdData = pd.DataFrame(data)
+    pdData = pdData.replace(-9999,"")
     # pdData.sort_values(['filename','Point'], axis=0, inplace=True, na_position='last')
     print(pdData)
     if excelFile is None:
-        if mode == "pv":
+        if mode == "mp":
             f="PhotoVaildationData.xlsx"
         elif mode == "sv":
             f="SkinVaildationData.xlsx"
@@ -581,7 +578,7 @@ def meetTheTeamPage():
     l0_1 = Label(col1Frame, text="TGH Team:", width=13, height=2, font= 'bold 15', background=BUTTON_BACKGROUND)
     l1_1 = Label(col2Frame, text="Medical Students\nTeam:", width=13, height=2, font='bold 15', background=BUTTON_BACKGROUND)
 
-    l0 = Label(col1Frame, text="Jake Laun, MD\nNicole Le, MD\nKristen Whalen, MD\nMahmood Al Bayati, MD\nKristina Gemayel, MD\nLoryn Taylor, ARNP", width=16, background=BUTTON_BACKGROUND)
+    l0 = Label(col1Frame, text="Jake Laun, MD\nNicole Le, MD\nKristen Whalen, MD\nKristina Gemayel, DO\nMahmood Al Bayati, MD\nLoryn Taylor, ARNP", width=16, background=BUTTON_BACKGROUND)
     l1 = Label(col2Frame, text="Ellie Randolph, BS\nJaynie Criscione, BS\nJulia Morris, BS\nMarian Mikhael, BS\nRithvic Jupudi, BS\nSarah Moffitt, BS\nShreya Arora, BS\nTimothy Nehila,BS\nWilliam West III, BS\nM. Tahseen Alkaelani, BS\nAdam Mohamed, MS", width=16, background=BUTTON_BACKGROUND)
 
     l0_1.pack(side='top', padx=(20,20), fill='x')
