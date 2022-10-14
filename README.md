@@ -13,5 +13,30 @@ Selecting data points:
 -If you would like to redo any of the samples, simply click on the sample to erase it. Keep in mind the samples always populate from the lowest number and you can erase multiple samples at the same time.  
 -When you have populated all the samples, you can click next to proceed to the next photo, or click finish to end the session early.  
 --if you would like to pick up where you left off, simply select the excel file output during the next session and the program will skip all the photos already analyzed.  
-  
-This application was developed by Youssef Mohamed and Bilal Koussayer. Further credit to be added soon.  
+
+This Software was developed by the Morsani College Of Medicine and Tampa General Hospital Plastic Surgery Burn Research Team lead by:  
+Youssef Mohamed, PhD and Bilal Koussayer, BS  
+
+TGH Team:  
+Jake Laun, MD  
+Nicole Le, MD  
+Kristen Whalen, MD  
+Mahmood Al Bayati, MD  
+Kristina Gemayel, MD  
+Loryn Taylor, ARNP   
+
+Medical Student Team:  
+Ellie Randolph, BS  
+Jaynie Criscione, BS  
+Julia Morris, BS  
+Marian Mikhael, BS  
+Rithvic Jupudi, BS  
+Sarah Moffitt, BS  
+Shreya Arora, BS  
+Timothy Nehila,BS  
+William West III, BS  
+Mohammed Tahseen Alkaelani  
+
+Please use the reference below if you use this software in your research:  
+
+Mohamed, Y., Koussayer, B., Le, N., Whalen, K., Al Bayati, M., Gemayel, K., Taylor, L., Randolph, E., Criscione, J., Morris, J., Mikhael, M., Jupudi, R., Moffitt, S., Arora, S., Nehila, T., West, W., & Laun, J. (1010, October 10). Skin AnalyzerVersion (1). WEBSITE_TITLE_HERE. Retrieved from WEBSITE_URKL_HERE.  

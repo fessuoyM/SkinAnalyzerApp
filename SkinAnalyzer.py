@@ -1,3 +1,5 @@
+#Copyright (c) 2022 Youssef Mohamed
+
 import tkinter as tk
 from tkinter import *
 from tkinter import filedialog
@@ -11,7 +13,6 @@ from skimage import color
 import math
 
 ## Some Constants to be used globally
-WINCONST = 1#1.2
 BACKGROUND = '#222222'
 BUTTON_BACKGROUND = "#888888"
 photoFolder = None
@@ -51,7 +52,7 @@ setupFrame.pack(fill='none', expand=True)
 
 ## Setup of the main screen before data collection
 def mainSetup():
-    global photoValBut, skinValBut, burnPhotoBut
+    global photoValBut, skinValBut, burnPhotoBut, flagText, flagFolder, photoFolder, name
     #Frames for orginazation
     fTop = Frame(setupFrame, background=BUTTON_BACKGROUND)
     fMid = Frame(setupFrame, background=BUTTON_BACKGROUND)
@@ -67,7 +68,11 @@ def mainSetup():
     photoValBut = Button(f1, text="MultiPoint Collection", highlightbackground=BUTTON_BACKGROUND, width=40, height=2, state=tk.DISABLED, command=lambda:setupCollection('pv'))
     skinValBut = Button(f1, text="Skin Photo Validation", highlightbackground=BUTTON_BACKGROUND, width=40, height=2 ,state=tk.DISABLED, command=lambda:setupCollection('sv'))
     burnPhotoBut = Button(f1, text="Burn Photo Data Collection", highlightbackground=BUTTON_BACKGROUND, width=40, height=2 ,state=tk.DISABLED, command=lambda:setupCollection('bp'))
-    ##Color difference between 2 points
+
+    if flagText and flagFolder and not photoFolder=='':
+        photoValBut['state']=tk.NORMAL
+        skinValBut['state']=tk.NORMAL
+        burnPhotoBut['state']=tk.NORMAL
 
     #Buttons to get file paths
     getPhotoFolder = Button(f2, text="Select Photos Folder", highlightbackground=BUTTON_BACKGROUND, width=20, height=2, command=lambda: getPath("Select Photos Folder", True))
@@ -76,6 +81,8 @@ def mainSetup():
     #Text entry to get names
     Label(fBottom, text = "Name: ", width = 10, height=2, background=BUTTON_BACKGROUND).pack(side='left', padx=(70,0))
     e = Entry(fBottom, text='', width = 20, validate = "focusout", validatecommand=lambda:getName(e))
+    if name is not None:
+        e.insert(END, name)
     e.pack(side='left', padx=(0,70))
     fBottom.bind("<Button 1>", lambda e: setupFrame.focus_set())
     setupFrame.bind("<Button 1>", lambda e: setupFrame.focus_set())
@@ -96,10 +103,16 @@ def mainSetup():
     l1.bind("<Button 1>", lambda e: setupFrame.focus_set())
 
     #Label with ownership
-    l2 = Label(setupFrame, text="Property of Youssef Mohamed and Bilal Koussayer.", wraplength = 500, justify='center', background=BUTTON_BACKGROUND)
-    l2.pack(side='bottom', pady = (20,10))
+    meetTheTeam = Button(setupFrame, text = "Meet the rest of the team here", highlightbackground=BUTTON_BACKGROUND, width=40, height=2, command=meetTheTeamPage)
+    meetTheTeam.pack(side='bottom', pady=(0,10))
+    l3 = Label(setupFrame, text="Youssef Mohamed, PHD and Bilal Koussayer, BS", wraplength = 500, justify='center', background=BUTTON_BACKGROUND)
+    l3.pack(side='bottom', pady = (0,10))
+    l2 = Label(setupFrame, text="This Software was developed by the Morsani College Of Medicine and Tampa General Hospital Plastic Surgery Burn Research Team lead by", wraplength = 500, justify='center', background=BUTTON_BACKGROUND)
+    l2.pack(side='bottom', pady = (10,0))
 
-    #Pack the components onto the root
+
+
+    #Pack the components onto the setupFrame
     photoValBut.pack()
     skinValBut.pack()
     burnPhotoBut.pack()
@@ -109,6 +122,7 @@ def mainSetup():
     f2.pack(side='left')
     fTop.pack(pady=(20,0), fill='x')
     fMid.pack(pady=(0,20))
+
 
 ## Check numeric input for Apperture
 def checkNumeric(e):
@@ -129,8 +143,7 @@ def getPath(str, i):
                 photoValBut['state']=tk.NORMAL
                 skinValBut['state']=tk.NORMAL
                 burnPhotoBut['state']=tk.NORMAL
-            else:
-                flagFolder = True
+            flagFolder = True
 
     else:
         excelFile = filedialog.askopenfilename(title=str, filetypes=(("Excel File", "*.xlsx"),('All files', '*.*')))
@@ -151,19 +164,18 @@ def getName(e):
         photoValBut['state']=tk.NORMAL
         skinValBut['state']=tk.NORMAL
         burnPhotoBut['state']=tk.NORMAL
-    else:
-        flagText = True
+    flagText = True
 
 ## Setup and run the photoValidation program
 def setupCollection(m):
-    global numSamples, mode, photoFolder, fileList, alreadyDone, root, data, name
+    global setupFrame, numSamples, mode, photoFolder, fileList, alreadyDone, root, data, name
     mode = m
     setupFrame.destroy()
     print(mode)
     if mode == "pv":
         numSamples=6
         txt = ["Sample #{0}".format(x) for x in range(1,numSamples+1)]
-        data = {'filename': [], 'imageNum': [], 'name': [], 'Point': [], 'x_corr': [], 'y_corr': [], 'L': [], 'a': [], 'b': [], 'ITA': [], 'SkinScore': [], 'R': [], 'G': [], 'B': []}
+        data = {'filename': [], 'imageNum': [], 'name': [], 'Point': [], 'x_corr': [], 'y_corr': [], 'L': [], 'a': [], 'b': [], 'ITA': [], 'Fitzpatrick Skin Type': [], 'R': [], 'G': [], 'B': []}
     elif mode == "sv":
         numSamples = 1
         txt = ["Sample"]
@@ -171,7 +183,7 @@ def setupCollection(m):
     elif mode == "bp":
         numSamples = 2
         txt = ["Skin","Burn"]
-        data = {'filename': [], 'imageNum': [], 'name': [], 'x_corr_Skin': [], 'y_corr_Skin': [], 'L_Skin': [], 'a_Skin': [], 'b_Skin': [], 'ITA_Skin': [], 'SkinScore_Skin': [], 'x_corr_Burn': [], 'y_corr_Burn': [], 'L_Burn': [], 'a_Burn': [], 'b_Burn': [], 'ITA_Burn': [], 'SkinScore_Burn': [], 'DeltaE': [], 'R_Skin': [], 'G_Skin': [], 'B_Skin': [], 'R_Burn': [], 'G_Burn': [], 'B_Burn': []}
+        data = {'filename': [], 'imageNum': [], 'name': [], 'x_corr_Skin': [], 'y_corr_Skin': [], 'L_Skin': [], 'a_Skin': [], 'b_Skin': [], 'ITA_Skin': [], 'Fitzpatrick Skin Type_Skin': [], 'x_corr_Burn': [], 'y_corr_Burn': [], 'L_Burn': [], 'a_Burn': [], 'b_Burn': [], 'ITA_Burn': [], 'Fitzpatrick Skin Type_Burn': [], 'DeltaE': [], 'R_Skin': [], 'G_Skin': [], 'B_Skin': [], 'R_Burn': [], 'G_Burn': [], 'B_Burn': []}
     else:
         numSamples = 0
         txt=""
@@ -195,7 +207,7 @@ def setupCollectionFrame(n,txt):
     print(os.path.join(photoFolder,fileList[ind]))
     imgMain = Image.open(os.path.join(photoFolder,fileList[ind]))
     print(maxDim)
-    maxDim = (0.75*root.winfo_width(), root.winfo_height()-70)
+    maxDim = (0.75*root.winfo_width(), root.winfo_height()-120)
     dim = int(imgMain.size[0]/maxDim[0] < imgMain.size[1]/maxDim[1])
     pixels_x, pixels_y = tuple([int(maxDim[dim]/imgMain.size[dim] * x)  for x in imgMain.size])
     imgb = ImageTk.PhotoImage(imgMain.resize((pixels_x, pixels_y)))
@@ -277,7 +289,9 @@ def setupCollectionFrame(n,txt):
     f2.pack()
 
     #Label with ownership
-    l2 = Label(root, text="Property of Youssef Mohamed and Bilal Koussayer.", wraplength = 500, justify='center', background=BUTTON_BACKGROUND)
+    l3 = Label(root, text="Youssef Mohamed, PHD and Bilal Koussayer, BS", wraplength = 500, justify='center', background=BUTTON_BACKGROUND)
+    l3.pack(side='bottom', fill='x')
+    l2 = Label(root, text="This Software was developed by the Morsani College Of Medicine and Tampa General Hospital Plastic Surgery Burn Research Team lead by", wraplength = 500, justify='center', background=BUTTON_BACKGROUND)
     l2.pack(side='bottom', fill='x')
 
     #Add a progress bar
@@ -299,7 +313,7 @@ def setupCollectionFrame(n,txt):
 def resiz(e,mainImg, f1):
     global maxDim, imgMain, root
     root.unbind('<Configure>')
-    maxDim = (0.75*e.width, e.height-70)
+    maxDim = (0.75*e.width, e.height-120)
     dim = imgMain.size[0]/maxDim[0] < imgMain.size[1]/maxDim[1]
     pixels_x, pixels_y = tuple([int(maxDim[dim]/imgMain.size[dim] * x)  for x in imgMain.size])
     img = ImageTk.PhotoImage(imgMain.resize((pixels_x, pixels_y)))
@@ -322,7 +336,7 @@ def nextImg(mainImg, samples, scaler, next, f1):
 
     #change main image to next
     root.unbind('<Configure>')
-    maxDim = (0.75*root.winfo_width(), root.winfo_height()-70)
+    maxDim = (0.75*root.winfo_width(), root.winfo_height()-120)
     imgMain = Image.open(os.path.join(photoFolder,fileList[ind]))
     dim = imgMain.size[0]/maxDim[0] < imgMain.size[1]/maxDim[1]
     pixels_x, pixels_y = tuple([int(maxDim[dim]/imgMain.size[dim] * x)  for x in imgMain.size])
@@ -407,25 +421,34 @@ def updateMasterList(im):
     im = np.array(im)[:,:,:3]
     if mode == 'pv':
         for i, coord in enumerate(coords):
-            RGB = im[int(coord[1])-width:int(coord[1])+width+1,int(coord[0])-width:int(coord[0])+width+1,0:3]
-            LAB = color.rgb2lab(RGB)
+            if coord is None:
+                meanRGB = [-1,-1,-1]
+                meanLAB = meanRGB
+                coord=[-1,-1]
+                score=-1
+            else:
+                RGB = im[int(coord[1])-width:int(coord[1])+width+1,int(coord[0])-width:int(coord[0])+width+1,0:3]
+                LAB = color.rgb2lab(RGB)
+                meanRGB=np.mean(RGB,axis=(0,1))
+                meanLAB=np.mean(LAB,axis=(0,1))
+                score=math.atan2(meanLAB[0]-50,meanLAB[2])*180/math.pi
             data['filename'].append(fileList[ind])
             data['imageNum'].append(ind)
             data['name']=name
             data['Point'].append(i+1)
             data['x_corr'].append(int(coord[0]))
             data['y_corr'].append(int(coord[1]))
-            meanRGB=np.mean(RGB,axis=(0,1))
             data['R'].append(meanRGB[0])
             data['G'].append(meanRGB[1])
             data['B'].append(meanRGB[2])
-            meanLAB=np.mean(LAB,axis=(0,1))
             data['L'].append(meanLAB[0])
             data['a'].append(meanLAB[1])
             data['b'].append(meanLAB[2])
-            score=math.atan2(meanLAB[0]-50,meanLAB[2])*180/math.pi
             data['ITA'].append(score)
-            data['SkinScore'].append(sum(score<scoreThresholds)+1)
+            if coord[0]<0:
+                data['Fitzpatrick Skin Type'].append(-1)
+            else:
+                data['Fitzpatrick Skin Type'].append(sum(score<scoreThresholds)+1)
     elif mode == 'sv':
         coord = coords[0]
         RGB = im[int(coord[1])-width:int(coord[1])+width+1,int(coord[0])-width:int(coord[0])+width+1,0:3]
@@ -446,7 +469,7 @@ def updateMasterList(im):
         data[f'b_{fileList[ind]}'] = meanLAB[2]
         score=math.atan2(meanLAB[0]-50,meanLAB[2])*180/math.pi
         data[f'ITA_{fileList[ind]}'] = score
-        data[f'SkinScore_{fileList[ind]}'] = sum(score<scoreThresholds)+1
+        data[f'Fitzpatrick Skin Type_{fileList[ind]}'] = sum(score<scoreThresholds)+1
         # data[f'R_{fileList[ind]}'] = meanRGB[0]
         # data[f'G_{fileList[ind]}'] = meanRGB[1]
         # data[f'B_{fileList[ind]}'] = meanRGB[2]
@@ -469,7 +492,7 @@ def updateMasterList(im):
         meanLAB1 = meanLAB
         score=math.atan2(meanLAB[0]-50,meanLAB[2])*180/math.pi
         data['ITA_Skin'].append(score)
-        data['SkinScore_Skin'].append(sum(score<scoreThresholds)+1)
+        data['Fitzpatrick Skin Type_Skin'].append(sum(score<scoreThresholds)+1)
         RGB = im[int(coords[1][1])-width:int(coords[1][1])+width+1,int(coords[1][0])-width:int(coords[1][0])+width+1,0:3]
         LAB = color.rgb2lab(RGB)
         data['x_corr_Burn'].append(int(coords[1][0]))
@@ -484,7 +507,7 @@ def updateMasterList(im):
         data['b_Burn'].append(meanLAB[2])
         score=math.atan2(meanLAB[0]-50,meanLAB[2])*180/math.pi
         data['ITA_Burn'].append(score)
-        data['SkinScore_Burn'].append(sum(score<scoreThresholds)+1)
+        data['Fitzpatrick Skin Type_Burn'].append(sum(score<scoreThresholds)+1)
         data['DeltaE'].append(math.sqrt(math.pow(meanLAB1[0]-meanLAB[0],2)+math.pow(meanLAB1[1]-meanLAB[1],2)+math.pow(meanLAB1[2]-meanLAB[2],2)))
     print(data)
 
@@ -516,8 +539,8 @@ def finish():
             pdData.to_excel(xlWriter,index=False)
         else:
             pdData.filter(regex='name').to_excel(xlWriter,index=False)
-            pdData.filter(regex='SkinScore').to_excel(xlWriter,index=False, startrow=0, startcol=1)
-            pdData.drop(pdData.filter(regex='name|SkinScore').columns,axis=1).to_excel(xlWriter,index=False, startrow=0,  startcol=1+len(pdData.filter(regex='SkinScore').columns))
+            pdData.filter(regex='Fitzpatrick Skin Type').to_excel(xlWriter,index=False, startrow=0, startcol=1)
+            pdData.drop(pdData.filter(regex='name|Fitzpatrick Skin Type').columns,axis=1).to_excel(xlWriter,index=False, startrow=0,  startcol=1+len(pdData.filter(regex='Fitzpatrick Skin Type').columns))
         xlWriter.save()
     else:
         xlWriter = pd.ExcelWriter(excelFile, engine="openpyxl")
@@ -530,11 +553,60 @@ def finish():
         else:
             row=xlWriter.sheets['Sheet1'].max_row
             pdData.filter(regex='name').to_excel(xlWriter,index=False,header=False,startrow=row)
-            pdData.filter(regex='SkinScore').to_excel(xlWriter,index=False,header=False,startrow=row, startcol=1)
-            pdData.drop(pdData.filter(regex='name|SkinScore').columns,axis=1).to_excel(xlWriter,index=False,header=False,startrow=row, startcol=1+len(pdData.filter(regex='SkinScore').columns))
+            pdData.filter(regex='Fitzpatrick Skin Type').to_excel(xlWriter,index=False,header=False,startrow=row, startcol=1)
+            pdData.drop(pdData.filter(regex='name|Fitzpatrick Skin Type').columns,axis=1).to_excel(xlWriter,index=False,header=False,startrow=row, startcol=1+len(pdData.filter(regex='Fitzpatrick Skin Type').columns))
         xlWriter.save()
     coords = []
     root.quit()
+
+## Show the contributors tot he project
+def meetTheTeamPage():
+    global setupFrame
+    setupFrame.destroy()
+    MTT = Frame(root, background=BUTTON_BACKGROUND)
+    MTT.pack(fill='none', expand=True)
+
+    l2 = Label(MTT, text="This Software was developed by the Morsani College Of Medicine and Tampa General Hospital Plastic Surgery Burn Research Team lead by", wraplength = 500, justify='center', background=BUTTON_BACKGROUND)
+    l2.pack(side='top', pady = (10,0))
+    l3 = Label(MTT, text="Youssef Mohamed, PHD and Bilal Koussayer, BS", wraplength = 500, justify='center', background=BUTTON_BACKGROUND)
+    l3.pack(side='top', pady = (0,10))
+
+    colFrame = Frame(MTT, background=BUTTON_BACKGROUND)
+    colFrame.pack(side='top', pady=(10,0), fill='none', expand=True)
+    col1Frame = Frame(colFrame, background=BUTTON_BACKGROUND)
+    col2Frame = Frame(colFrame, background=BUTTON_BACKGROUND)
+    col1Frame.pack(side='left', padx=(20,20), anchor='ne', fill='x')
+    col2Frame.pack(side='right', padx=(20,20), anchor='nw', fill='x')
+
+    l0_1 = Label(col1Frame, text="TGH Team:", width=13, height=2, font= 'bold 15', background=BUTTON_BACKGROUND)
+    l1_1 = Label(col2Frame, text="Medical Students\nTeam:", width=13, height=2, font='bold 15', background=BUTTON_BACKGROUND)
+
+    l0 = Label(col1Frame, text="Jake Laun, MD\nNicole Le, MD\nKristen Whalen, MD\nMahmood Al Bayati, MD\nKristina Gemayel, MD\nLoryn Taylor, ARNP", width=16, background=BUTTON_BACKGROUND)
+    l1 = Label(col2Frame, text="Ellie Randolph, BS\nJaynie Criscione, BS\nJulia Morris, BS\nMarian Mikhael, BS\nRithvic Jupudi, BS\nSarah Moffitt, BS\nShreya Arora, BS\nTimothy Nehila,BS\nWilliam West III, BS\nM. Tahseen Alkaelani, BS\nAdam Mohamed, MS", width=16, background=BUTTON_BACKGROUND)
+
+    l0_1.pack(side='top', padx=(20,20), fill='x')
+    l1_1.pack(side='top', padx=(20,20), fill='x')
+    l0.pack(side='bottom', padx=(20,20), fill='x')
+    l1.pack(side='bottom', padx=(20,20), fill='x')
+
+    l4 = Label(MTT, text="Please use the reference below if you use this software in your research:\n\nMohamed, Y., Koussayer, B., Le, N., Whalen, K., Al Bayati, M., Gemayel, K., Taylor, L., Randolph, E., Criscione, J., Morris, J., Mikhael, M., Jupudi, R., Moffitt, S., Arora, S., Nehila, T., West, W., & Laun, J. (1010, October 10). Skin AnalyzerVersion (1). WEBSITE_TITLE_HERE. Retrieved from WEBSITE_URKL_HERE.", wraplength = 500, justify='center', background=BUTTON_BACKGROUND)
+
+
+    back = Button(MTT, text="Back to Main Page", width = 20, height=2, background=BUTTON_BACKGROUND, highlightbackground=BUTTON_BACKGROUND, command=lambda: setupMainAgain(MTT))
+    back.pack(side='bottom', pady=(20,10))
+    l4.pack(side='bottom', pady=(10,5), padx = 30)
+
+## Setup the setupFrame again
+def setupMainAgain(MTT):
+    global setupFrame, root
+    MTT.destroy()
+    w  = root.winfo_screenwidth()
+    h = root.winfo_screenheight()
+    root.geometry(f'{int(w/2)}x{int(h*0.8)}')
+    root.configure(background=BACKGROUND)
+    setupFrame = Frame(root, background=BUTTON_BACKGROUND)
+    setupFrame.pack(fill='none', expand=True)
+    mainSetup()
 
 ## run the setup function and start the event loop
 mainSetup()
