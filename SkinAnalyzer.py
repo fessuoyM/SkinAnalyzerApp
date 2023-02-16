@@ -1,4 +1,4 @@
-#Copyright (c) 2022 Youssef Mohamed
+#Copyright (c) 2022 Youssef Mohamed and Bilal Koussayer
 
 import tkinter as tk
 from tkinter import *
@@ -71,7 +71,7 @@ def mainSetup():
 
     #Buttons to choose data collection method
     fMulti = Frame(f1, background=BUTTON_BACKGROUND)
-    multiPointBut = Button(fMulti, text="MultiPoint Collection", highlightbackground=BUTTON_BACKGROUND, height=2, state=tk.DISABLED, command=lambda:setupCollection('mp'))
+    multiPointBut = Button(fMulti, text="MultiPoint Collection", highlightbackground=BUTTON_BACKGROUND, height=2, state=tk.DISABLED, command=lambda:setupCollection('mp', e2, False))
     multiPointBut.pack(side='left', fill='x', expand=True)
     e2 = Entry(fMulti, text='', width = 2, validate = "focusout", validatecommand=lambda:checkNumeric(e2, False))
     e2.insert(END, str(numSamples))
@@ -79,7 +79,7 @@ def mainSetup():
     multiLabel = Label(fMulti, text = "Samples/Pic: ", width = 10, height=2, background=BUTTON_BACKGROUND)
     multiLabel.pack(side='right', padx=(6,0))
 
-    burnPhotoBut = Button(f1, text="Two-point with ΔE", highlightbackground=BUTTON_BACKGROUND, width=35, height=2 ,state=tk.DISABLED, command=lambda:setupCollection('bp'))
+    burnPhotoBut = Button(f1, text="Two-point with ΔE", highlightbackground=BUTTON_BACKGROUND, width=35, height=2 ,state=tk.DISABLED, command=lambda:setupCollection('bp', None, None))
 
     if flagText and flagFolder and not photoFolder=='':
         multiPointBut['state']=tk.NORMAL
@@ -200,8 +200,10 @@ def getName(e):
     flagText = True
 
 ## Setup and run the photoValidation program
-def setupCollection(m):
+def setupCollection(m, e, app):
     global setupFrame, numSamples, mode, photoFolder, fileList, alreadyDone, root, data, name
+    if not e is None and not checkNumeric(e,app):
+        return
     mode = m
     setupFrame.destroy()
     print(mode)
@@ -210,14 +212,14 @@ def setupCollection(m):
         data = {'filename': [], 'imageNum': [], 'name': [], 'Point': [], 'x_corr': [], 'y_corr': [], 'L*': [], 'a*': [], 'b*': [], 'ITA': [], 'Fitzpatrick Skin Type': [], 'R': [], 'G': [], 'B': []}
     elif mode == "bp":
         numSamples = 2
-        txt = ["Skin","Burn"]
-        data = {'filename': [], 'imageNum': [], 'name': [], 'x_corr_Skin': [], 'y_corr_Skin': [], 'L*_Skin': [], 'a*_Skin': [], 'b*_Skin': [], 'ITA_Skin': [], 'Fitzpatrick Skin Type_Skin': [], 'x_corr_Burn': [], 'y_corr_Burn': [], 'L*_Burn': [], 'a*_Burn': [], 'b*_Burn': [], 'ITA_Burn': [], 'Fitzpatrick Skin Type_Burn': [], 'DeltaE': [], 'R_Skin': [], 'G_Skin': [], 'B_Skin': [], 'R_Burn': [], 'G_Burn': [], 'B_Burn': []}
+        txt = ["Point 1","Point 2"]
+        data = {'filename': [], 'imageNum': [], 'name': [], 'x_corr_Point_1': [], 'y_corr_Point_1': [], 'L*_Point_1': [], 'a*_Point_1': [], 'b*_Point_1': [], 'ITA_Point_1': [], 'Fitzpatrick Skin Type_Point_1': [], 'x_corr_Point_2': [], 'y_corr_Point_2': [], 'L*_Point_2': [], 'a*_Point_2': [], 'b*_Point_2': [], 'ITA_Point_2': [], 'Fitzpatrick Skin Type_Point_2': [], 'DeltaE': [], 'R_Point_1': [], 'G_Point_1': [], 'B_Point_1': [], 'R_Point_2': [], 'G_Point_2': [], 'B_Point_2': []}
     else:
         numSamples = 0
         txt=""
     print(f"numSamples={numSamples}")
     fileList = os.listdir(photoFolder)
-    fileList = [f for f in fileList if ('.png' in f or '.jpeg' in f or '.jpg' in f) and f not in alreadyDone]
+    fileList = [f for f in fileList if ('.png' in f.lower() or '.jpeg' in f.lower() or '.jpg' in f.lower() or '.jp2' in f.lower()) and f not in alreadyDone]
     fileList.sort()
     if len(fileList)==0:
         Label(root, text="You have already analyzed all the photos in this folder", width = 50, height = 2, background=BUTTON_BACKGROUND).pack()
@@ -235,7 +237,7 @@ def setupCollectionFrame(n,txt):
     print(os.path.join(photoFolder,fileList[ind]))
     imgMain = Image.open(os.path.join(photoFolder,fileList[ind]))
     print(maxDim)
-    maxDim = (root.winfo_width()-math.ceil(numSamples/maxPicsPerCol)*100, root.winfo_height()-120)
+    maxDim = (root.winfo_width()-max(math.ceil(numSamples/maxPicsPerCol)*100,200), root.winfo_height()-120)
     dim = int(imgMain.size[0]/maxDim[0] < imgMain.size[1]/maxDim[1])
     pixels_x, pixels_y = tuple([int(maxDim[dim]/imgMain.size[dim] * x)  for x in imgMain.size])
     imgb = ImageTk.PhotoImage(imgMain.resize((pixels_x, pixels_y)))
@@ -332,7 +334,7 @@ def setupCollectionFrame(n,txt):
 def resiz(e,mainImg, f1):
     global maxDim, imgMain, root, maxPicsPerCol, numSamples
     root.unbind('<Configure>')
-    maxDim = (e.width-math.ceil(numSamples/maxPicsPerCol)*100, e.height-120)
+    maxDim = (e.width-max(math.ceil(numSamples/maxPicsPerCol)*100,200), e.height-120)
     dim = imgMain.size[0]/maxDim[0] < imgMain.size[1]/maxDim[1]
     pixels_x, pixels_y = tuple([int(maxDim[dim]/imgMain.size[dim] * x)  for x in imgMain.size])
     img = ImageTk.PhotoImage(imgMain.resize((pixels_x, pixels_y)))
@@ -356,7 +358,7 @@ def nextImg(mainImg, samples, scaler, next, f1):
 
     #change main image to next
     root.unbind('<Configure>')
-    maxDim = (root.winfo_width()-math.ceil(numSamples/maxPicsPerCol)*100, root.winfo_height()-120)
+    maxDim = (root.winfo_width()-max(math.ceil(numSamples/maxPicsPerCol)*100,200), root.winfo_height()-120)
     imgMain = Image.open(os.path.join(photoFolder,fileList[ind]))
     dim = imgMain.size[0]/maxDim[0] < imgMain.size[1]/maxDim[1]
     pixels_x, pixels_y = tuple([int(maxDim[dim]/imgMain.size[dim] * x)  for x in imgMain.size])
@@ -475,35 +477,35 @@ def updateMasterList(im):
         data['filename'].append(fileList[ind])
         data['imageNum'].append(ind)
         data['name']=name
-        data['x_corr_Skin'].append(int(coords[0][0]))
-        data['y_corr_Skin'].append(int(coords[0][1]))
+        data['x_corr_Point_1'].append(int(coords[0][0]))
+        data['y_corr_Point_1'].append(int(coords[0][1]))
         meanRGB=np.mean(RGB,axis=(0,1))
-        data['R_Skin'].append(meanRGB[0])
-        data['G_Skin'].append(meanRGB[1])
-        data['B_Skin'].append(meanRGB[2])
+        data['R_Point_1'].append(meanRGB[0])
+        data['G_Point_1'].append(meanRGB[1])
+        data['B_Point_1'].append(meanRGB[2])
         meanLAB=np.mean(LAB,axis=(0,1))
-        data['L*_Skin'].append(meanLAB[0])
-        data['a*_Skin'].append(meanLAB[1])
-        data['b*_Skin'].append(meanLAB[2])
+        data['L*_Point_1'].append(meanLAB[0])
+        data['a*_Point_1'].append(meanLAB[1])
+        data['b*_Point_1'].append(meanLAB[2])
         meanLAB1 = meanLAB
         score=math.atan2(meanLAB[0]-50,meanLAB[2])*180/math.pi
-        data['ITA_Skin'].append(score)
-        data['Fitzpatrick Skin Type_Skin'].append(sum(score<scoreThresholds)+1)
+        data['ITA_Point_1'].append(score)
+        data['Fitzpatrick Skin Type_Point_1'].append(sum(score<scoreThresholds)+1)
         RGB = im[int(coords[1][1])-width:int(coords[1][1])+width+1,int(coords[1][0])-width:int(coords[1][0])+width+1,0:3]
         LAB = color.rgb2lab(RGB)
-        data['x_corr_Burn'].append(int(coords[1][0]))
-        data['y_corr_Burn'].append(int(coords[1][1]))
+        data['x_corr_Point_2'].append(int(coords[1][0]))
+        data['y_corr_Point_2'].append(int(coords[1][1]))
         meanRGB=np.mean(RGB,axis=(0,1))
-        data['R_Burn'].append(meanRGB[0])
-        data['G_Burn'].append(meanRGB[1])
-        data['B_Burn'].append(meanRGB[2])
+        data['R_Point_2'].append(meanRGB[0])
+        data['G_Point_2'].append(meanRGB[1])
+        data['B_Point_2'].append(meanRGB[2])
         meanLAB=np.mean(LAB,axis=(0,1))
-        data['L*_Burn'].append(meanLAB[0])
-        data['a*_Burn'].append(meanLAB[1])
-        data['b*_Burn'].append(meanLAB[2])
+        data['L*_Point_2'].append(meanLAB[0])
+        data['a*_Point_2'].append(meanLAB[1])
+        data['b*_Point_2'].append(meanLAB[2])
         score=math.atan2(meanLAB[0]-50,meanLAB[2])*180/math.pi
-        data['ITA_Burn'].append(score)
-        data['Fitzpatrick Skin Type_Burn'].append(sum(score<scoreThresholds)+1)
+        data['ITA_Point_2'].append(score)
+        data['Fitzpatrick Skin Type_Point_2'].append(sum(score<scoreThresholds)+1)
         data['DeltaE'].append(math.sqrt(math.pow(meanLAB1[0]-meanLAB[0],2)+math.pow(meanLAB1[1]-meanLAB[1],2)+math.pow(meanLAB1[2]-meanLAB[2],2)))
     print(data)
 
